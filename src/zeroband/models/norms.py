@@ -14,12 +14,25 @@ from functools import partial
 import torch
 import torch.nn as nn
 
+import torch.version
 import triton
 import triton.language as tl
 
 from torch.distributed._tensor import Partial, Replicate, Shard
 from torch.distributed._tensor.experimental import local_map
 
+
+warp_config=[
+        triton.Config({}, num_warps=1),
+        triton.Config({}, num_warps=2),
+        triton.Config({}, num_warps=4),
+        triton.Config({}, num_warps=8),
+        triton.Config({}, num_warps=16)
+    ]
+
+rocm = torch.version.hip is not None
+if not rocm:
+    warp_config.append(triton.Config({}, num_warps=32))
 
 def build_norm(norm_type: str, dim: int, eps: float = 1e-6):
     """
@@ -114,14 +127,7 @@ class RMSNorm(nn.Module):
 
 
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_warps=1),
-        triton.Config({}, num_warps=2),
-        triton.Config({}, num_warps=4),
-        triton.Config({}, num_warps=8),
-        triton.Config({}, num_warps=16),
-        triton.Config({}, num_warps=32),
-    ],
+    configs=warp_config,
     key=["N"],
 )
 @triton.jit
@@ -162,14 +168,7 @@ def _rms_norm_fwd_kernel(
 
 
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_warps=1),
-        triton.Config({}, num_warps=2),
-        triton.Config({}, num_warps=4),
-        triton.Config({}, num_warps=8),
-        triton.Config({}, num_warps=16),
-        triton.Config({}, num_warps=32),
-    ],
+    configs=warp_config,
     key=["N"],
 )
 @triton.jit

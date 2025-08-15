@@ -30,9 +30,18 @@ def get_sharding_strategy(sharding_strategy: str) -> ShardingStrategy:
 ### code above inspired and copied from https://github.com/pytorch/torchtitan/blob/4b3f2e41a084bf79a8540068ed525539d1244edd/torchtitan/utils.py#L119
 
 
-# hardcoded BF16 type peak flops for NVIDIA A100 and H100 GPU
+# hardcoded BF16 type peak flops for NVIDIA and AMD GPUs
 def get_peak_flops(device_name: str) -> int:
-    if "A100" in device_name:
+    if "MI250" in device_name:
+        #data from https://rocm.docs.amd.com/en/latest/conceptual/gpu-arch/mi250.html
+        return 362e12
+    elif "MI300" in device_name:
+        #data from https://www.amd.com/content/dam/amd/en/documents/instinct-tech-docs/data-sheets/amd-instinct-mi300x-data-sheet.pdf
+        return 1307e12  
+    elif "MI355" in device_name:
+        #data from https://www.amd.com/content/dam/amd/en/documents/instinct-tech-docs/product-briefs/amd-instinct-mi355x-gpu-brochure.pdf
+        return 2.5e15
+    elif "A100" in device_name:
         # data from https://www.nvidia.com/en-us/data-center/a100/
         return 312e12
     elif "H100" in device_name:

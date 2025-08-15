@@ -10,11 +10,31 @@ log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
 }
 
+detect_gpu_vendor() {
+    if command -v rocm-smi &> /dev/null; then
+        echo "rocm"
+    elif command -v nvidia-smi &> /dev/null; then
+        echo "nvidia"
+    else
+        echo "none"
+    fi
+}
+
 main() {
     # Check if sudo is installed
     if ! command -v sudo &> /dev/null; then
         apt update
         apt install sudo -y
+    fi
+
+    log_info "Detecting GPU vendor..."
+    GPU_VENDOR=$(detect_gpu_vendor)
+    log_info "Detected GPU vendor: $GPU_VENDOR"
+
+    if [ "$GPU_VENDOR" = "rocm" ]; then
+        EXTRA_ARGS="--extra rocm"
+    else
+        EXTRA_ARGS=""
     fi
 
     log_info "Updating apt..."
@@ -47,17 +67,20 @@ main() {
     source .venv/bin/activate
     
     log_info "Installing dependencies..."
-    uv sync --extra all
+    uv sync $EXTRA_ARGS --extra all
         
     log_info "Updating git submodules..."
     git submodule update --init --recursive
     
     log_info "Downloading data..."
+    uv run $EXTRA_ARGS python scripts/subset_data.py \
+        --dataset_name PrimeIntellect/fineweb-edu \
+        --data_world_size 1 --data_rank 0 --max_shards 128
+
     mkdir -p datasets
-    uv run python scripts/subset_data.py --dataset_name PrimeIntellect/fineweb-edu --data_world_size 1 --data_rank 0 --max_shards 128
     mv fineweb-edu/ datasets/fineweb-edu/
 
-    log_info "Installation completed! You can double check that everything is install correctly by running 'GLOO_SOCKET_IFNAME=lo GLOBAL_ADDR=localhost GLOBAL_RANK=0 GLOBAL_UNIQUE_ID=0 GLOBAL_WORLD_SIZE=1 GLOBAL_PORT=8989  uv run torchrun --nproc_per_node=2 src/zeroband/train.py  @configs/debug/diloco.toml'"
+    log_info "Installation completed! You can double check that everything is install correctly by running 'GLOO_SOCKET_IFNAME=lo GLOBAL_ADDR=localhost GLOBAL_RANK=0 GLOBAL_UNIQUE_ID=0 GLOBAL_WORLD_SIZE=1 GLOBAL_PORT=8989  uv run $EXTRA_ARGS torchrun --nproc_per_node=2 src/zeroband/train.py  @configs/debug/diloco.toml'"
 }
 
 main
