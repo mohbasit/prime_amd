@@ -81,7 +81,12 @@ mkdir -p datasets
 uv run python scripts/subset_data.py --dataset_name PrimeIntellect/fineweb-edu --data_world_size 1 --data_rank 0 --max_shards 32
 mv fineweb-edu/ datasets/fineweb-edu/
 ```
-
+## Compatibility with AMD GPUs
+When using AMD GPUs, during dependency download use the following: 
+```bash
+uv sync --extra rocm --extra all
+```
+Also when executing the run commands, use `uv run --extra rocm` as otherwise the uv environment falls back to default configuration.
 
 ### Quick Check
 
